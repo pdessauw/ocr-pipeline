@@ -1,7 +1,7 @@
 import unittest
 from os.path import exists, join, dirname, realpath
 from mongoengine.errors import DoesNotExist
-from os import remove
+from os import remove, mkdir
 from pipeline.files import FileManager
 from nose.tools import raises, nottest
 
@@ -21,12 +21,15 @@ class FileManagerUploadDownloadTestCase(unittest.TestCase):
                 remove(self.test_filename)
 
             self.file_manager.empty()
-            self.file_manager.close()
+            # self.file_manager.close()
 
         self.addCleanup(cleanup)
 
         self.file_manager = FileManager()
         self.test_filename = join(RESOURCES_DIR, "test.txt")
+
+        if not exists(RESOURCES_DIR):
+            mkdir(RESOURCES_DIR)
 
         # TODO Remove this part and insert it into every test
         if not exists(self.test_filename):
