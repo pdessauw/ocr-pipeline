@@ -42,7 +42,9 @@ class Master(StoppableThread):
         self.log_writer = LogWriter(logging.getLogger("app"))
 
         self.command_queue = QueueManager(host=master_ip, port=master_queue_port, qname="commands")
+        self.error_queue = QueueManager(host=master_ip, port=master_queue_port, qname="errors")
         self.finished_queue = QueueManager(host=master_ip, port=master_queue_port, qname="finished")
+
         self.fman = FileManager(master_ip, master_queue_port)
 
         self.config = app_config
@@ -74,6 +76,8 @@ class Master(StoppableThread):
 
                 processed_filenames.append(filename)
 
+            # Process finished queue if needed
+            self.logger.debug("Processing finished jobs...")
             if len(self.finished_queue) > 0:
                 self.logger.info("Finished queue not empty")
 
@@ -86,9 +90,27 @@ class Master(StoppableThread):
                         remove(output_file_path)
 
                     move(filename, self.config["dirs"]["output"])
-                    self.fman.delete_file(filename)
+                    # self.fman.delete_file(filename)
 
                 self.logger.info("No more finished job to process")
+
+            # Process error queue if needed
+            self.logger.debug("Processing errors...")
+            if len(self.error_queue) > 0:
+                self.logger.info("Error queue not empty")
+
+                while not self.error_queue.is_empty():
+                    filename = self.error_queue.pop()
+                    self.fman.retrieve_file(filename)
+
+                    error_file_path = join(self.config["dirs"]["error"], split(filename)[1])
+                    if exists(error_file_path):
+                        remove(error_file_path)
+
+                    move(filename, self.config["dirs"]["error"])
+                    # self.fman.delete_file(filename)
+
+                self.logger.info("No more errors to process")
 
             sleep(60)  # Avoid CPU consuption while waiting
 
@@ -113,7 +135,9 @@ class Slave(StoppableThread):
         master_queue_port = app_config["redis"]["port"]
 
         self.command_queue = QueueManager(host=master_ip, port=master_queue_port, qname="commands")
+        self.error_queue = QueueManager(host=master_ip, port=master_queue_port, qname="errors")
         self.finished_queue = QueueManager(host=master_ip, port=master_queue_port, qname="finished")
+
         self.fman = FileManager(master_ip, master_queue_port)
 
         slave_ip = gethostbyname(gethostname())
@@ -137,9 +161,11 @@ class Slave(StoppableThread):
 
                 # Job returned an error and has reached the limit of tries
                 if status == 1 and cmd.tries >= self.max_tries:
-                    self.logger.error("Error when processing command")
+                    self.logger.error("Error when processing command. Pushing to error queue.")
+                    self.error_queue.push(cmd.filename)
                     continue
 
+                # Job has finished
                 if cmd.current_step == -1:
                     self.logger.info("Pushing to finished queue")
                     self.finished_queue.push(cmd.filename)

@@ -2,6 +2,7 @@ root: /path/to/pipeline
 use_sudo: false
 dirs:
     input: data.in
+    error: data.err
     output: data.out
     temp: tmp
     logs: logs
