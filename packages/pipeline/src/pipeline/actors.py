@@ -55,11 +55,13 @@ class Master(StoppableThread):
         self.log_writer.start()
         self.logger.debug("Running master...")
 
-        processed_filenames = []
+        # processed_filenames = []
+        processing_filenames = []
 
         while not self.is_stopped():
             self.logger.debug("Reading directory...")
-            filenames = [f for f in listdir(self.input) if f not in processed_filenames]
+            # filenames = [f for f in listdir(self.input) if f not in processed_filenames]
+            filenames = listdir(self.input)
 
             if len(filenames) > 0:
                 self.logger.info(str(len(filenames)) + " file(s) to put in the queue")
@@ -71,10 +73,17 @@ class Master(StoppableThread):
                 if dirname is not None:
                     archive = zip_directory(dirname)
 
-                    self.fman.store_file(archive)
-                    self.command_queue.push(CommandQueueItem(filename=archive, logger=self.logger, config=self.config))
+                    if archive not in processing_filenames:
+                        self.fman.store_file(archive)
+                        self.command_queue.push(CommandQueueItem(filename=archive, logger=self.logger,
+                                                                 config=self.config))
 
-                processed_filenames.append(filename)
+                        processing_filenames.append(archive)
+                    else:
+                        self.logger.info(filename + " is currently being processed. Adding it to the job queue is " +
+                                         "impossible")
+
+                # processed_filenames.append(filename)
 
             # Process finished queue if needed
             self.logger.debug("Processing finished jobs...")
@@ -90,6 +99,9 @@ class Master(StoppableThread):
                         remove(output_file_path)
 
                     move(filename, self.config["dirs"]["output"])
+
+                    processed_file_index = processing_filenames.index(filename)
+                    del processing_filenames[processed_file_index]
                     # self.fman.delete_file(filename)
 
                 self.logger.info("No more finished job to process")
@@ -108,6 +120,9 @@ class Master(StoppableThread):
                         remove(error_file_path)
 
                     move(filename, self.config["dirs"]["error"])
+
+                    processed_file_index = processing_filenames.index(filename)
+                    del processing_filenames[processed_file_index]
                     # self.fman.delete_file(filename)
 
                 self.logger.info("No more errors to process")
