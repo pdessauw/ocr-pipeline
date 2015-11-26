@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <title>Ocr-pipeline by pdessauw</title>
+  </head>
+
+  <body>
+    <header>
+      <div class="inner">
+        <h1>Ocr-pipeline</h1>
+        <h2>Convert a corpus of PDF to clean text files on a distributed architecture</h2>
+        <a href="https://github.com/pdessauw/ocr-pipeline" class="button"><small>View project on</small> GitHub</a>
+      </div>
+    </header>
+
+    <div id="content-wrapper">
+      <div class="inner clearfix">
+        <section id="main-content">
+          <h1>
+<a id="ocr-pipeline" class="anchor" href="#ocr-pipeline" aria-hidden="true"><span class="octicon octicon-link"></span></a>OCR Pipeline</h1>
+
+<p><strong>Author:</strong> Philippe Dessauw, <a href="mailto:philippe.dessauw@nist.gov">philippe.dessauw@nist.gov</a></p>
+
+<p><strong>Contact:</strong> Alden Dima, <a href="mailto:alden.dima@nist.gov">alden.dima@nist.gov</a></p>
+
+<p><a href="https://scrutinizer-ci.com/g/usnistgov/ocr-pipeline/?branch=master"><img src="https://scrutinizer-ci.com/g/usnistgov/ocr-pipeline/badges/quality-score.png?b=master" alt="Scrutinizer Code Quality"></a></p>
+
+<hr>
+
+<h2>
+<a id="description" class="anchor" href="#description" aria-hidden="true"><span class="octicon octicon-link"></span></a>Description</h2>
+
+<p>The <strong>OCR Pipeline</strong> (referred later as the "pipeline") is designed to convert PDF files to clean TXT files in 3 steps:</p>
+
+<ol>
+<li>PDF to PNG conversion with <em>PythonMagick</em> (Python binding for ImageMagick),</li>
+<li>PNG to TXT conversion using <em>Ocropy</em>,</li>
+<li>TXT cleaning in order to remove all trace of garbage strings.</li>
+</ol>
+
+<p>The pipeline is running on a distributed master/slave architecture with a <em>Redis</em> queue as a communication layer.</p>
+
+<ul>
+<li>One master server is reading input content to build the job queue,</li>
+<li>Slaves pop jobs from that queue and process them.</li>
+</ul>
+
+<p>The software is developed by the National Institute of Standards and Technology (NIST).</p>
+
+<p><em>N.B.:</em> This software has exclusively been designed to be run on <strong>Linux servers</strong>. Execution on Mac and Windows has not 
+been tested.</p>
+
+<h2>
+<a id="prerequisites" class="anchor" href="#prerequisites" aria-hidden="true"><span class="octicon octicon-link"></span></a>Prerequisites</h2>
+
+<h3>
+<a id="python" class="anchor" href="#python" aria-hidden="true"><span class="octicon octicon-link"></span></a>Python</h3>
+
+<p>The pipeline is developed in <em>Python2</em> (&gt;=2.7). You can check your version using:</p>
+
+<pre><code>$&gt; python2 --version
+</code></pre>
+
+<p><strong>Warning:</strong> The pipeline is not designed to work in Python3. Make sure your path point towards a Python2 installation.</p>
+
+<h4>
+<a id="virtual-environment" class="anchor" href="#virtual-environment" aria-hidden="true"><span class="octicon octicon-link"></span></a>Virtual environment</h4>
+
+<p>We recommend using a Python virtual environment to ensure proper operation of the pipeline. Make sure your environment 
+is activated at installation time.</p>
+
+<h4>
+<a id="packages" class="anchor" href="#packages" aria-hidden="true"><span class="octicon octicon-link"></span></a>Packages</h4>
+
+<p>There are two package that needed to be installed before installing the pipeline: <strong>pip</strong> and <strong>PythonMagick</strong>.</p>
+
+<h5>
+<a id="pip" class="anchor" href="#pip" aria-hidden="true"><span class="octicon octicon-link"></span></a>pip</h5>
+
+<p>This package will be used to install the packages bundled in this repository and their dependancies. No manual action is 
+required to install dependancies.</p>
+
+<h5>
+<a id="pythonmagick" class="anchor" href="#pythonmagick" aria-hidden="true"><span class="octicon octicon-link"></span></a>PythonMagick</h5>
+
+<p>This package needs to be manually installed. Its version is heavily dependent on your <strong>ImageMagick</strong> version. Please 
+visit <a href="http://www.imagemagick.org">http://www.imagemagick.org</a> for more information.</p>
+
+<h3>
+<a id="redis" class="anchor" href="#redis" aria-hidden="true"><span class="octicon octicon-link"></span></a>Redis</h3>
+
+<p>Redis needs to be installed on the master server. Redis version should be <strong>&gt;= 2.7</strong>. Follow Redis installation steps at 
+<a href="http://redis.io/download#installation">http://redis.io/download#installation</a>.</p>
+
+<h3>
+<a id="ocropy" class="anchor" href="#ocropy" aria-hidden="true"><span class="octicon octicon-link"></span></a>Ocropy</h3>
+
+<p>Ocropy is required to convert images to text files. The code is available at <a href="https://github.com/tmbdev/ocropy">https://github.com/tmbdev/ocropy</a>. Make sure 
+it is downloaded and can be launched on all your slaves.</p>
+
+<h3>
+<a id="xserver" class="anchor" href="#xserver" aria-hidden="true"><span class="octicon octicon-link"></span></a>XServer</h3>
+
+<p>The command <code>xvfb-run</code> should be available for our scripts. Depending on your operating system, it is not always stored 
+in the same package. Please refer to your OS package manager to download it.</p>
+
+<h3>
+<a id="nltk" class="anchor" href="#nltk" aria-hidden="true"><span class="octicon octicon-link"></span></a>NLTK</h3>
+
+<p>In order for NLTK to run properly, you need to download the <strong>english tokenizer</strong>. The following python code will check 
+your NLTK installation and get the tokenizer if it is not present:</p>
+
+<pre><code>import nltk
+
+try:
+    nltk.data.find('tokenizers/punkt')
+except:
+    nltk.download('punkt')
+</code></pre>
+
+<h2>
+<a id="downloading-the-project" class="anchor" href="#downloading-the-project" aria-hidden="true"><span class="octicon octicon-link"></span></a>Downloading the project</h2>
+
+<p>Once all the prerequisites are met, download the project:</p>
+
+<ol>
+<li>
+<p>Get the source code on Github:</p>
+
+<pre><code>$&gt; cd /path/to/workspace
+$&gt; git clone https://github.com/usnistgov/ocr-pipeline.git
+</code></pre>
+</li>
+<li>
+<p>Configure the application:</p>
+
+<pre><code>$&gt; cd ocr-pipeline
+$&gt; cp -r conf.sample conf
+</code></pre>
+</li>
+</ol>
+
+<h2>
+<a id="configuration" class="anchor" href="#configuration" aria-hidden="true"><span class="octicon octicon-link"></span></a>Configuration</h2>
+
+<p>All the configuration should be put in the <em>conf</em> folder.</p>
+
+<h3>
+<a id="appyaml" class="anchor" href="#appyaml" aria-hidden="true"><span class="octicon octicon-link"></span></a>app.yaml</h3>
+
+<h4>
+<a id="root" class="anchor" href="#root" aria-hidden="true"><span class="octicon octicon-link"></span></a>root</h4>
+
+<p>Absolute path to the pipeline code. The project will be copied to this location when you install and run the pipeline.</p>
+
+<h4>
+<a id="use_sudo" class="anchor" href="#use_sudo" aria-hidden="true"><span class="octicon octicon-link"></span></a>use_sudo</h4>
+
+<p>Define if the script needs to use sudo to install the pipeline.</p>
+
+<h4>
+<a id="commands--list--pngreader--ocropy--location" class="anchor" href="#commands--list--pngreader--ocropy--location" aria-hidden="true"><span class="octicon octicon-link"></span></a>commands / list # PNGReader / ocropy / location</h4>
+
+<p>Path where you have downloaded Ocropy.</p>
+
+<h4>
+<a id="commands--list--pngreader--ocropy--model" class="anchor" href="#commands--list--pngreader--ocropy--model" aria-hidden="true"><span class="octicon octicon-link"></span></a>commands / list # PNGReader / ocropy / model</h4>
+
+<p>Path where you have downloaded the Ocropy model (<em>en-default.pyrnn.gz</em>).</p>
+
+<h3>
+<a id="envyaml" class="anchor" href="#envyaml" aria-hidden="true"><span class="octicon octicon-link"></span></a>env.yaml</h3>
+
+<h4>
+<a id="python--path" class="anchor" href="#python--path" aria-hidden="true"><span class="octicon octicon-link"></span></a>python / path</h4>
+
+<p>Path of your general Python installation.</p>
+
+<h4>
+<a id="python--virtualenv" class="anchor" href="#python--virtualenv" aria-hidden="true"><span class="octicon octicon-link"></span></a>python / virtualenv</h4>
+
+<p>Path of your virtual environment. Comment this line if not needed.</p>
+
+<h3>
+<a id="machinesyaml" class="anchor" href="#machinesyaml" aria-hidden="true"><span class="octicon octicon-link"></span></a>machines.yaml</h3>
+
+<h4>
+<a id="master" class="anchor" href="#master" aria-hidden="true"><span class="octicon octicon-link"></span></a>master</h4>
+
+<p>The IP address of the master is in the form of a connection string. It is formatted as a list but only the first element 
+is relevant.</p>
+
+<h4>
+<a id="slaves" class="anchor" href="#slaves" aria-hidden="true"><span class="octicon octicon-link"></span></a>slaves</h4>
+
+<p>List of connection strings to the slaves.</p>
+
+<h2>
+<a id="installation" class="anchor" href="#installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Installation</h2>
+
+<p>Here are the steps you have to follow to install the pipeline on your architecture machine.</p>
+
+<ol>
+<li>
+<p>Initialize the application on your first machine</p>
+
+<pre><code>$&gt; cd /path/to/ocr-pipeline
+$&gt; ./utils/install.sh
+$&gt; ./ui.sh init
+</code></pre>
+</li>
+<li>
+<p>Create data models</p>
+
+<pre><code>$&gt; ./ui.sh create_models /path/to/training_set
+</code></pre>
+</li>
+</ol>
+
+<p><em>N.B.</em> : Depending on your training set, this step could take some time to complete.</p>
+
+<ol>
+<li>
+<p>Install the pipeline on slaves and master</p>
+
+<pre><code>$&gt; ./ui.sh -r install
+</code></pre>
+</li>
+<li>
+<p>Check that everything is installed on all the machines</p>
+
+<pre><code>$&gt; ./ui.sh -r check
+</code></pre>
+</li>
+</ol>
+
+<h2>
+<a id="running-the-pipeline" class="anchor" href="#running-the-pipeline" aria-hidden="true"><span class="octicon octicon-link"></span></a>Running the pipeline</h2>
+
+<h3>
+<a id="incoming-data" class="anchor" href="#incoming-data" aria-hidden="true"><span class="octicon octicon-link"></span></a>Incoming data</h3>
+
+<p>When you want to start converting a corpus of PDF files, you have to place the files in the input directory. By default, 
+this directory is named <em>data.in</em>.</p>
+
+<h3>
+<a id="starting-the-pipeline" class="anchor" href="#starting-the-pipeline" aria-hidden="true"><span class="octicon octicon-link"></span></a>Starting the pipeline</h3>
+
+<p>To start the pipeline, you just have to run <code>./ui.sh -r start_pipeline</code>. It will remotely start all the slaves and the 
+master. </p>
+
+<h3>
+<a id="output" class="anchor" href="#output" aria-hidden="true"><span class="octicon octicon-link"></span></a>Output</h3>
+
+<p>Each time a new file has been processed, it will be put in the output directory of the master server. By default, this 
+directory is named <em>data.out</em>.</p>
+
+<h2>
+<a id="contact" class="anchor" href="#contact" aria-hidden="true"><span class="octicon octicon-link"></span></a>Contact</h2>
+
+<p>If you encouter any issue or bug with this software please use the <a href="https://github.com/usnistgov/ocr-pipeline/issues">issue tracker</a>. 
+If you want to make some enhancement, feel free to fork this repository and submit a pull request once your new feature 
+is ready.</p>
+
+<p>If you have any questions, comments or suggestions about this repository, please send an e-mail to Alden Dima 
+(<a href="mailto:alden.dima@nist.gov">alden.dima@nist.gov</a>).</p>
+        </section>
+
+        <aside id="sidebar">
+          <a href="https://github.com/pdessauw/ocr-pipeline/zipball/master" class="button">
+            <small>Download</small>
+            .zip file
+          </a>
+          <a href="https://github.com/pdessauw/ocr-pipeline/tarball/master" class="button">
+            <small>Download</small>
+            .tar.gz file
+          </a>
+
+          <p class="repo-owner"><a href="https://github.com/pdessauw/ocr-pipeline"></a> is maintained by <a href="https://github.com/pdessauw">pdessauw</a>.</p>
+
+          <p>This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the Architect theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.</p>
+        </aside>
+      </div>
+    </div>
+
+  
+  </body>
+</html>
